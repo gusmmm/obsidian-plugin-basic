@@ -1,0 +1,9 @@
+{
+    "id": "obsidian-basic-plugin",
+    "name": "Basic Plugin",
+    "version": "1.0.0",
+    "minAppVersion": "0.15.0",
+    "description": "A basic plugin for Obsidian.md",
+    "author": "Your Name",
+    "isDesktopOnly": false
+}
