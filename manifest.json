@@ -1,6 +1,6 @@
 {
     "id": "obsidian-basic-plugin",
-    "name": "Basic Plugin",
+    "name": "Japanese Helper",
     "version": "1.0.0",
     "minAppVersion": "0.15.0",
     "description": "A basic plugin for Obsidian.md",

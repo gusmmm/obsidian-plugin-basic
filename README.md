@@ -1,27 +1,58 @@
-# Obsidian Basic Plugin
+# Japanese to English Translator Plugin for Obsidian
 
-This is a basic plugin for Obsidian (https://obsidian.md).
+This plugin helps you learn Japanese by translating selected Japanese text to English using an AI LLM model from OpenRouter.
 
-## How to use
+## Features
 
-- Clone this repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
+- Translate selected Japanese text to English
+- Customizable LLM model selection
+- Easy-to-use context menu integration
+- Custom prompt for tailored translations
 
-## Releasing new releases
+## Installation
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+1. Download the plugin files and place them in your Obsidian plugins folder.
+2. Enable the plugin in Obsidian settings under "Community Plugins".
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+## Configuration
 
-## API Documentation
+1. Go to Settings > Community Plugins > Japanese to English Translator > Settings
+2. Enter your OpenRouter API key
+3. Select your preferred LLM model for translation
+4. (Optional) Customize the translation prompt
 
-See https://github.com/obsidianmd/obsidian-api
+### Custom Prompt
+
+You can customize the prompt given to the AI model to guide the translation process. This allows you to tailor the translation to your specific needs. For example:
+
+- "Translate the following Japanese text to English, providing explanations for idioms."
+- "Translate the following Japanese text to English, focusing on formal language."
+- "Translate the following Japanese text to English, and include the literal translation for any figurative expressions."
+
+## Usage
+
+1. Select the Japanese text you want to translate in your note
+2. Right-click on the selected text
+3. Choose "Translate to English" from the context menu
+4. The English translation will be appended after the selected text
+
+## API Key Security
+
+IMPORTANT: Keep your API key confidential and secure. Follow these guidelines:
+
+1. Never share your API key publicly or include it in your code repositories.
+2. If you suspect your API key has been compromised, regenerate it immediately from your OpenRouter account.
+3. Use environment variables or secure credential management systems in development environments.
+4. Regularly rotate your API keys as a security best practice.
+
+The plugin stores your API key locally and securely within Obsidian's settings. However, always exercise caution when handling API keys.
+
+## Note
+
+Make sure you have a valid OpenRouter API key and sufficient credits for the selected model. The plugin will not work without a valid API key.
+
+## Support
+
+If you encounter any issues or have suggestions for improvement, please open an issue on the plugin's GitHub repository.
+
+Enjoy learning Japanese with this translator plugin!

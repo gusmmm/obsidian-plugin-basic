@@ -81,3 +81,12 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Obsidian plugin specific
+data.json
+
+# Any file that might contain sensitive information
+*.key
+*.secret
+*config*.json
+*settings*.json
