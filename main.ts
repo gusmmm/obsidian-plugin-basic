@@ -1,4 +1,4 @@
-import { Plugin, PluginSettingTab, App, Setting, Editor, Menu, Notice } from 'obsidian';
+import { Plugin, PluginSettingTab, App, Setting, Editor, Menu, MenuItem, Notice, MarkdownView, requestUrl } from 'obsidian';
 
 interface JapaneseTranslatorSettings {
     apiKey: string;
@@ -12,16 +12,16 @@ const DEFAULT_SETTINGS: JapaneseTranslatorSettings = {
     customPrompt: 'You are a translator. Translate the following Japanese text to English.',
 }
 
-export default class JapaneseTranslatorPlugin extends Plugin {
+export default class JapaneseHelperPlugin extends Plugin {
     settings: JapaneseTranslatorSettings;
 
     async onload() {
-        console.log('JapaneseTranslatorPlugin: Starting to load plugin');
+        console.log('JapaneseHelperPlugin: Starting to load plugin');
         await this.loadSettings();
-        console.log('JapaneseTranslatorPlugin: Settings loaded');
+        console.log('JapaneseHelperPlugin: Settings loaded');
 
         this.addSettingTab(new JapaneseTranslatorSettingTab(this.app, this));
-        console.log('JapaneseTranslatorPlugin: Setting tab added');
+        console.log('JapaneseHelperPlugin: Setting tab added');
 
         this.registerEvent(
             this.app.workspace.on("editor-menu", (menu: Menu, editor: Editor) => {
@@ -29,42 +29,67 @@ export default class JapaneseTranslatorPlugin extends Plugin {
                 if (selection) {
                     menu.addItem((item) => {
                         item
+                            .setTitle("Japanese Helper")
+                            .setIcon("language");
+                    });
+
+                    menu.addItem((item) => {
+                        item
                             .setTitle("Translate to English")
-                            .setIcon("language")
+                            .setIcon("translate")
+                            .setSection("japanese-helper")
                             .onClick(async () => {
-                                console.log('JapaneseTranslatorPlugin: Translation requested');
+                                console.log('JapaneseHelperPlugin: Translation requested');
                                 const translation = await this.translateJapaneseToEnglish(selection);
                                 editor.replaceSelection(selection + "\n\nTranslation:\n" + translation);
-                                console.log('JapaneseTranslatorPlugin: Translation completed and inserted');
+                                console.log('JapaneseHelperPlugin: Translation completed and inserted');
+                            });
+                    });
+
+                    menu.addItem((item) => {
+                        item
+                            .setTitle("Jisho Lookup")
+                            .setIcon("search")
+                            .setSection("japanese-helper")
+                            .onClick(async () => {
+                                console.log('JapaneseHelperPlugin: Jisho lookup requested');
+                                const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+                                if (view) {
+                                    await this.lookupJisho(selection, editor, view);
+                                    console.log('JapaneseHelperPlugin: Jisho lookup completed');
+                                } else {
+                                    new Notice("Active view is not a markdown view");
+                                }
                             });
                     });
                 }
             })
         );
-        console.log('JapaneseTranslatorPlugin: Editor menu event registered');
+        console.log('JapaneseHelperPlugin: Editor menu event registered');
     }
 
     async loadSettings() {
         this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-        console.log('JapaneseTranslatorPlugin: Settings loaded');
+        console.log('JapaneseHelperPlugin: Settings loaded');
     }
 
     async saveSettings() {
         await this.saveData(this.settings);
-        console.log('JapaneseTranslatorPlugin: Settings saved');
+        console.log('JapaneseHelperPlugin: Settings saved');
     }
 
     async translateJapaneseToEnglish(text: string): Promise<string> {
-        console.log('JapaneseTranslatorPlugin: Starting translation');
+        console.log('JapaneseHelperPlugin: Starting translation');
         if (!this.settings.apiKey) {
-            console.error('JapaneseTranslatorPlugin: API key is missing');
+            console.error('JapaneseHelperPlugin: API key is missing');
             new Notice("Please set your OpenRouter API key in the plugin settings.");
             return "";
         }
 
-        console.log('JapaneseTranslatorPlugin: Sending API request');
+        console.log('JapaneseHelperPlugin: Sending API request');
         try {
-            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            const response = await requestUrl({
+                url: "https://openrouter.ai/api/v1/chat/completions",
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -79,24 +104,103 @@ export default class JapaneseTranslatorPlugin extends Plugin {
                 }),
             });
 
-            if (!response.ok) {
+            if (response.status !== 200) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
-            const result = await response.json();
-            console.log('JapaneseTranslatorPlugin: Translation successful');
+            const result = response.json;
+            console.log('JapaneseHelperPlugin: Translation successful');
             return result.choices[0].message.content.trim();
         } catch (error) {
-            console.error('JapaneseTranslatorPlugin: Error during translation', error);
-            throw error;
+            console.error('JapaneseHelperPlugin: Error during translation', error);
+            new Notice("Error occurred during translation. Please try again.");
+            return "";
+        }
+    }
+
+    async lookupJisho(text: string, editor: Editor, view: MarkdownView) {
+        console.log('JapaneseHelperPlugin: Starting Jisho lookup');
+        const words = text.trim().split(/\s+/);
+        if (words.length === 0) {
+            new Notice("No text selected for Jisho lookup.");
+            return;
+        }
+
+        const firstWord = words[0];
+        try {
+            const jishoUrl = `https://jisho.org/api/v1/search/words?keyword=${encodeURIComponent(firstWord)}`;
+            const response = await requestUrl({
+                url: jishoUrl,
+                method: "GET",
+            });
+
+            if (response.status !== 200) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = response.json;
+            if (data.data && data.data.length > 0) {
+                const result = data.data[0];
+                let jishoInfo = `### ${firstWord}\n\n`;
+
+                // Add all readings
+                jishoInfo += "**Readings:**\n";
+                result.japanese.forEach((item: any, index: number) => {
+                    jishoInfo += `${index + 1}. `;
+                    if (item.word) jishoInfo += `${item.word} `;
+                    if (item.reading) jishoInfo += `(${item.reading})`;
+                    jishoInfo += "\n";
+                });
+                jishoInfo += "\n";
+
+                // Add all meanings with additional info
+                jishoInfo += "**Meanings:**\n";
+                result.senses.forEach((sense: any, index: number) => {
+                    jishoInfo += `${index + 1}. ${sense.english_definitions.join(', ')}\n`;
+                    if (sense.parts_of_speech.length > 0) {
+                        jishoInfo += `   _Part of speech:_ ${sense.parts_of_speech.join(', ')}\n`;
+                    }
+                    if (sense.tags.length > 0) {
+                        jishoInfo += `   _Tags:_ ${sense.tags.join(', ')}\n`;
+                    }
+                    if (sense.info.length > 0) {
+                        jishoInfo += `   _Info:_ ${sense.info.join(', ')}\n`;
+                    }
+                    jishoInfo += "\n";
+                });
+
+                // Add JLPT level if available
+                if (result.jlpt.length > 0) {
+                    jishoInfo += `**JLPT Level:** ${result.jlpt.join(', ')}\n\n`;
+                }
+
+                // Add example sentences if available
+                if (result.senses[0].sentences) {
+                    jishoInfo += "**Example Sentences:**\n";
+                    result.senses[0].sentences.forEach((example: any, index: number) => {
+                        jishoInfo += `${index + 1}. ${example.japanese}\n   ${example.english}\n\n`;
+                    });
+                }
+
+                const currentContent = await view.editor.getValue();
+                const newContent = currentContent + '\n\n' + jishoInfo;
+                await view.editor.setValue(newContent);
+                
+                new Notice(`Jisho information for "${firstWord}" added to the note.`);
+            } else {
+                new Notice(`No Jisho information found for "${firstWord}".`);
+            }
+        } catch (error) {
+            console.error('JapaneseHelperPlugin: Error during Jisho lookup', error);
+            new Notice("Error occurred during Jisho lookup. Please try again.");
         }
     }
 }
 
 class JapaneseTranslatorSettingTab extends PluginSettingTab {
-    plugin: JapaneseTranslatorPlugin;
+    plugin: JapaneseHelperPlugin;
 
-    constructor(app: App, plugin: JapaneseTranslatorPlugin) {
+    constructor(app: App, plugin: JapaneseHelperPlugin) {
         super(app, plugin);
         this.plugin = plugin;
     }
@@ -116,7 +220,7 @@ class JapaneseTranslatorSettingTab extends PluginSettingTab {
                     .onChange(async (value) => {
                         this.plugin.settings.apiKey = value;
                         await this.plugin.saveSettings();
-                        console.log('JapaneseTranslatorPlugin: API key updated');
+                        console.log('JapaneseHelperPlugin: API key updated');
                     });
             });
 
@@ -133,7 +237,7 @@ class JapaneseTranslatorSettingTab extends PluginSettingTab {
                 .onChange(async (value) => {
                     this.plugin.settings.model = value;
                     await this.plugin.saveSettings();
-                    console.log('JapaneseTranslatorPlugin: LLM model updated');
+                    console.log('JapaneseHelperPlugin: LLM model updated');
                 }));
 
         new Setting(containerEl)
@@ -145,7 +249,7 @@ class JapaneseTranslatorSettingTab extends PluginSettingTab {
                     .onChange(async (value) => {
                         this.plugin.settings.customPrompt = value;
                         await this.plugin.saveSettings();
-                        console.log('JapaneseTranslatorPlugin: Custom prompt updated');
+                        console.log('JapaneseHelperPlugin: Custom prompt updated');
                     });
                 text.inputEl.rows = 10;
                 text.inputEl.cols = 50;
